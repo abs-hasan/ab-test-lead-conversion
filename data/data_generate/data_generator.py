@@ -4,7 +4,6 @@ B2B SaaS company testing new lead onboarding process launched June 1st, 2024.
 VERSION: Saves to both DATABASE and CSV files in raw_data folder
 """
 
-
 import pandas as pd
 import numpy as np
 import sqlite3
@@ -16,7 +15,7 @@ import os
 from pathlib import Path
 
 class HybridCRMGenerator:
-    """Realistic CRM data simulation - Saves to both database and CSV files."""
+
     
     def __init__(self, seed=42):
         self.fake = Faker()
@@ -38,16 +37,15 @@ class HybridCRMGenerator:
         self.stages = ['New', 'Contacted', 'Qualified', 'Demo Scheduled', 'Proposal Sent', 'Closed Won', 'Closed Lost']
         
         # Database and CSV setup
-        self.db_dir = Path('./database_file')
+        self.db_dir = Path('./db')
         self.db_dir.mkdir(parents=True, exist_ok=True)
         self.db_path = self.db_dir / 'abxplore.db'
 
         self.csv_dir = Path('./raw_data')
         self.csv_dir.mkdir(parents=True, exist_ok=True)
         
-
     def generate_complete_dataset(self):
-        print("🏢 Generating CRM dataset...")
+        print("🏢 Generating dataset...")
         print("📋 Scenario: B2B SaaS company testing new lead onboarding process")
         print(f"📅 New process launched: {self.test_start_date.strftime('%Y-%m-%d')}")
         
@@ -72,15 +70,13 @@ class HybridCRMGenerator:
         self._save_to_database(leads_df, contact_events_df, funnel_stages_df, outcomes_df)
         self._save_to_csv(leads_df, contact_events_df, funnel_stages_df, outcomes_df)
         
-        # Show proper A/B test context
+        # Show proper A/B test context  
         control_count = len(leads_df[leads_df['group'] == 'control'])
         test_count = len(leads_df[leads_df['group'] == 'test'])
-        test_period_total = len(leads_df[pd.to_datetime(leads_df['created_at']) >= self.test_start_date])
         
-        print(f"🔬 PROPER A/B TEST SETUP:")
-        print(f"   Pre-test baseline (Jan-May): {len(leads_df[pd.to_datetime(leads_df['created_at']) < self.test_start_date]):,} leads")
-        print(f"   A/B test period (Jun-Dec): {test_period_total:,} leads")
-        print(f"   ├── Control group: {len(leads_df[(leads_df['group'] == 'control') & (pd.to_datetime(leads_df['created_at']) >= self.test_start_date)]):,} leads")
+        print(f"   Total leads generated: {len(leads_df):,}")
+        print(f"   ├── Control group: {control_count:,} leads")
+        print(f"   └── Test group: {test_count:,} leads")
         print(f"   └── Test group: {test_count:,} leads")
         print(f"📊 Total Control: {control_count:,} | Total Test: {test_count:,}")
         print(f"✅ Generated {len(leads_df):,} leads with realistic CRM data")
@@ -95,6 +91,7 @@ class HybridCRMGenerator:
         }
     
     def _generate_leads(self):
+        """Generate realistic lead data as found in CRM systems."""
         leads = []
         
         for i in range(self.total_leads):
@@ -384,90 +381,162 @@ class HybridCRMGenerator:
         return pd.DataFrame(outcomes)
     
     def _introduce_data_quality_issues_leads(self, df):
-        """Introduce realistic data quality issues in leads data."""
+        """Introduce realistic data quality issues that staging models will clean."""
         df = df.copy()
         
-        # 1. Some test company names (2% of records)
+        # 1. Test company names (2% of records) - staging will filter these out
         test_indices = df.sample(frac=0.02).index
-        df.loc[test_indices, 'company_name'] = ['Test Company', 'Delete Me', 'Sample Corp'][np.random.randint(0, 3)]
+        test_names = ['Test Company Inc', 'Delete This Company', 'Sample Corp LLC', 'Test Data Corp']
+        for idx in test_indices:
+            df.loc[idx, 'company_name'] = np.random.choice(test_names)
         
-        # 2. Some extreme revenue outliers (1% of records)
-        outlier_indices = df.sample(frac=0.01).index
-        df.loc[outlier_indices, 'annual_revenue'] = np.random.choice([-1000000, 999999999, 50000000])
-        
-        # 3. Some future dates (0.5% of records)
-        future_indices = df.sample(frac=0.005).index
-        df.loc[future_indices, 'created_at'] = '2025-01-15 10:00:00'
-        
-        # 4. Phone numbers with extensions (10% of records with phones)
+        # 2. Phone numbers with extensions and formatting issues (15% of records with phones)
         phone_mask = df['contact_phone'].notna()
-        phone_indices = df[phone_mask].sample(frac=0.1).index
-        df.loc[phone_indices, 'contact_phone'] = df.loc[phone_indices, 'contact_phone'] + ' x123'
+        if phone_mask.sum() > 0:
+            phone_indices = df[phone_mask].sample(frac=0.15).index
+            extension_formats = [' x123', ' ext 456', ' extension 789', ' x1001']
+            for idx in phone_indices:
+                df.loc[idx, 'contact_phone'] = df.loc[idx, 'contact_phone'] + np.random.choice(extension_formats)
         
-        # 5. Some duplicate emails (3% of records)
-        duplicate_indices = df.sample(frac=0.03).index
-        duplicate_email = 'duplicate@example.com'
-        df.loc[duplicate_indices, 'contact_email'] = duplicate_email
+        # 3. Missing regions (5% of records) - staging will set to 'Unknown'
+        missing_region_indices = df.sample(frac=0.05).index
+        df.loc[missing_region_indices, 'region'] = None
+        
+        # 4. Company size case variations (8% of records) - staging will standardize
+        case_indices = df.sample(frac=0.08).index
+        size_variations = {'Small': 'small', 'Medium': 'medium', 'Large': 'large', 'Enterprise': 'enterprise'}
+        for idx in case_indices:
+            original_size = df.loc[idx, 'company_size']
+            if original_size in size_variations:
+                df.loc[idx, 'company_size'] = size_variations[original_size]
+        
+        # 5. Future dates (0.6% of records) - staging will cap to today
+        future_indices = df.sample(frac=0.006).index
+        future_dates = ['2025-01-15 10:00:00', '2025-02-20 14:30:00', '2025-03-10 09:15:00']
+        for idx in future_indices:
+            df.loc[idx, 'created_at'] = np.random.choice(future_dates)
+        
+        # 6. Extreme revenue outliers (1.2% of records) - staging will cap/fix
+        outlier_indices = df.sample(frac=0.012).index
+        extreme_values = [-500000, 999999999, 50000000, -100000]  # Mix of negative and extreme positive
+        for idx in outlier_indices:
+            df.loc[idx, 'annual_revenue'] = np.random.choice(extreme_values)
         
         return df
     
     def _introduce_data_quality_issues_contacts(self, df):
-        """Introduce realistic data quality issues in contact events."""
+        """Introduce realistic data quality issues that staging models will clean."""
         df = df.copy()
         
-        # 1. Some missing response types (5% of records)
-        missing_indices = df.sample(frac=0.05).index
+        # 1. Missing response types (6% of records) - staging will set to 'No Response'
+        missing_indices = df.sample(frac=0.06).index
         df.loc[missing_indices, 'response_type'] = None
         
-        # 2. Some inconsistent contact type casing (8% of records)
-        case_indices = df.sample(frac=0.08).index
-        df.loc[case_indices, 'contact_type'] = df.loc[case_indices, 'contact_type'].str.lower()
+        # 2. Contact type casing and naming variations (12% of records) - staging will standardize
+        case_indices = df.sample(frac=0.12).index
+        type_variations = {
+            'Email': ['email', 'Email'],
+            'Phone Call': ['call', 'phone call', 'Phone Call'],
+            'LinkedIn Message': ['linkedin', 'LinkedIn', 'LinkedIn Message'],
+            'Demo Request': ['demo request']
+        }
         
-        # 3. Some future event dates (1% of records)
-        future_indices = df.sample(frac=0.01).index
-        df.loc[future_indices, 'event_date'] = '2025-02-01'
+        for idx in case_indices:
+            original_type = df.loc[idx, 'contact_type']
+            variations = type_variations.get(original_type, [original_type.lower()])
+            df.loc[idx, 'contact_type'] = np.random.choice(variations)
+        
+        # 3. Future event dates (1.2% of records) - staging will cap to today
+        future_indices = df.sample(frac=0.012).index
+        future_dates = ['2025-02-01', '2025-01-25', '2025-03-15']
+        for idx in future_indices:
+            df.loc[idx, 'event_date'] = np.random.choice(future_dates)
+        
+        # 4. Empty string response types (3% of records) - staging will handle
+        empty_indices = df.sample(frac=0.03).index
+        df.loc[empty_indices, 'response_type'] = ''
         
         return df
     
     def _introduce_data_quality_issues_funnel(self, df):
-        """Introduce realistic data quality issues in funnel stages."""
+        """Introduce realistic data quality issues that staging models will clean."""
         df = df.copy()
         
-        # 1. Some invalid stage orders (2% of records)
-        invalid_indices = df.sample(frac=0.02).index
-        df.loc[invalid_indices, 'stage_order'] = np.random.choice([-1, 0, 99])
+        # 1. Invalid stage orders (2.5% of records) - staging will fix to 1-7 range
+        invalid_indices = df.sample(frac=0.025).index
+        invalid_orders = [-1, 0, 8, 99, -5]
+        for idx in invalid_indices:
+            df.loc[idx, 'stage_order'] = np.random.choice(invalid_orders)
         
-        # 2. Some inconsistent stage names (5% of records)
-        inconsistent_indices = df.sample(frac=0.05).index
+        # 2. Stage name variations and casing issues (8% of records) - staging will standardize
+        inconsistent_indices = df.sample(frac=0.08).index
         name_variations = {
-            'Qualified': 'qualified',
-            'Demo Scheduled': 'demo',
-            'Proposal Sent': 'quote sent',
-            'Closed Won': 'won'
+            'New': ['new lead', 'initial', 'new'],
+            'Contacted': ['contacted'],
+            'Qualified': ['qualified', 'mql', 'marketing qualified'],
+            'Demo Scheduled': ['demo', 'demo scheduled'],
+            'Proposal Sent': ['proposal', 'quote', 'quote sent'],
+            'Closed Won': ['closed won', 'won', 'closed-won'],
+            'Closed Lost': ['closed lost', 'lost', 'closed-lost']
         }
+        
         for idx in inconsistent_indices:
             if idx < len(df):
                 original_name = df.loc[idx, 'stage_name']
-                if original_name in name_variations:
-                    df.loc[idx, 'stage_name'] = name_variations[original_name]
+                variations = name_variations.get(original_name, [original_name.lower()])
+                df.loc[idx, 'stage_name'] = np.random.choice(variations)
+        
+        # 3. Future stage dates (1% of records) - staging will cap to today
+        future_indices = df.sample(frac=0.01).index
+        future_dates = ['2025-01-30', '2025-02-15']
+        for idx in future_indices:
+            df.loc[idx, 'stage_date'] = np.random.choice(future_dates)
+        
+        # 4. Missing stage orders (1.5% of records) - staging will handle
+        missing_order_indices = df.sample(frac=0.015).index
+        df.loc[missing_order_indices, 'stage_order'] = None
         
         return df
     
     def _introduce_data_quality_issues_outcomes(self, df):
-        """Introduce realistic data quality issues in outcomes."""
+        """Introduce realistic data quality issues that staging models will clean."""
         df = df.copy()
         
-        # 1. Some negative revenue values (1% of records)
-        negative_indices = df.sample(frac=0.01).index
-        df.loc[negative_indices, 'revenue'] = -abs(df.loc[negative_indices, 'revenue'])
+        # 1. Negative revenue values (1.5% of records) - staging will set to 0
+        negative_indices = df.sample(frac=0.015).index
+        for idx in negative_indices:
+            df.loc[idx, 'revenue'] = -abs(df.loc[idx, 'revenue'])
         
-        # 2. Some negative days to close (2% of records)
+        # 2. Extreme revenue outliers (1% of records) - staging will cap to realistic amounts
+        extreme_indices = df.sample(frac=0.01).index
+        extreme_values = [999999999, 50000000, 2500000]  # Extreme values that staging will cap
+        for idx in extreme_indices:
+            df.loc[idx, 'revenue'] = np.random.choice(extreme_values)
+        
+        # 3. Negative days to close (2% of records) - staging will fix to positive
         negative_days_indices = df.sample(frac=0.02).index
-        df.loc[negative_days_indices, 'days_to_close'] = -abs(df.loc[negative_days_indices, 'days_to_close'])
+        for idx in negative_days_indices:
+            df.loc[idx, 'days_to_close'] = -abs(df.loc[idx, 'days_to_close'])
         
-        # 3. Some inconsistent conversion/revenue logic (1% of records)
-        inconsistent_indices = df.sample(frac=0.01).index
-        df.loc[inconsistent_indices, 'converted'] = 1 - df.loc[inconsistent_indices, 'converted']  # Flip conversion
+        # 4. Inconsistent conversion/revenue logic (1.5% of records) - staging will fix
+        inconsistent_indices = df.sample(frac=0.015).index
+        for idx in inconsistent_indices:
+            # Create logical inconsistencies that staging will fix
+            if df.loc[idx, 'converted'] == 1:
+                df.loc[idx, 'revenue'] = 0  # Converted but no revenue
+            else:
+                df.loc[idx, 'revenue'] = 50000  # Not converted but has revenue
+        
+        # 5. Extreme days to close (1% of records) - staging will cap to 730 days
+        extreme_days_indices = df.sample(frac=0.01).index
+        extreme_days = [800, 1000, 1500, 999]
+        for idx in extreme_days_indices:
+            df.loc[idx, 'days_to_close'] = np.random.choice(extreme_days)
+        
+        # 6. Missing outcome dates for converted leads (0.8% of records) - staging will handle
+        missing_date_indices = df.sample(frac=0.008).index
+        converted_missing = missing_date_indices[df.loc[missing_date_indices, 'converted'] == 1]
+        df.loc[converted_missing, 'outcome_date'] = None
         
         return df
     
@@ -492,5 +561,19 @@ class HybridCRMGenerator:
 
 
 if __name__ == "__main__":
-    generator = HybridCRMGenerator()
-    generator.generate_complete_dataset()
+    print("🚀 Generating ABXplore CRM Data with Realistic Quality Issues")
+    print("=" * 60)
+    
+    # Generate data with comprehensive quality issues
+    generator = HybridCRMGenerator(seed=42)
+    datasets = generator.generate_complete_dataset()
+    
+    print("\n✅ Data generation complete!")
+    print("📊 Data includes realistic quality issues that staging models will clean:")
+    print("   • Test company names and phone extensions")
+    print("   • Missing regions and inconsistent casing")
+    print("   • Future dates and extreme revenue outliers")
+    print("   • Contact type variations and missing responses")
+    print("   • Stage name inconsistencies and invalid orders")
+    print("   • Revenue/conversion logic issues and extreme values")
+    print("\n🔧 Now run dbt transformations to see the staging models clean this data!")
