@@ -1,13 +1,17 @@
 # macOS system files
 .DS_Store
+Thumbs.db
+Desktop.ini
 
 # VS Code settings
 .vscode/
 
-# Python cache and environments
+# Python cache and compiled files
 __pycache__/
 *.py[cod]
 *.so
+
+# Python packaging
 *.egg
 *.egg-info/
 dist/
@@ -15,23 +19,23 @@ build/
 
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints/
+**/.ipynb_checkpoints/
 
-# Virtual environments
+# Python virtual environments
 env/
 venv/
 ENV/
 .venv/
 
-# Logs and debug files
+# Logs and temp files
 *.log
 *.tmp
-
-# SQLite and DB files
-*.sqlite3
-*.db
-
-# Python-specific
 pip-log.txt
+
+# SQLite and database files
+*.sqlite3
+
+# Test and coverage
 htmlcov/
 .tox/
 .coverage
@@ -41,11 +45,18 @@ coverage.xml
 *.cover
 .hypothesis/
 
-# Environment and config files (optional)
+# Environment and backup files
 .env
 .env.*
 *.bak
 
-# OS-specific
-Thumbs.db
-Desktop.ini
+# dbt artifacts
+dbt/target/
+dbt/logs/
+dbt/.dbt/
+dbt/graph_summary.json
+dbt/graph.gpickle
+dbt/manifest.json
+dbt/partial_parse.msgpack
+dbt/run_results.json
+dbt/semantic_manifest.json
