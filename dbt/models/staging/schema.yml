@@ -1,0 +1,88 @@
+version: 2
+
+models:
+  - name: stg_leads
+    description: >
+      Staging model for leads with comprehensive data cleaning and validation.
+      Removes test data, standardizes formats, and adds quality flags.
+    columns:
+      - name: lead_id
+        description: Unique identifier for each lead
+        tests:
+          - unique
+          - not_null
+      - name: company_name_clean
+        description: Cleaned company name with test data removed
+      - name: contact_email
+        description: Contact email address
+      - name: lead_group
+        description: Test group assignment (control/test)
+      - name: created_at_clean
+        description: Lead creation date with validation
+      - name: was_test_data
+        description: Flag indicating if original record was test data (1/0)
+
+  - name: stg_outcomes
+    description: >
+      Staging model for outcomes with data validation and business logic corrections.
+      Ensures consistency between conversion flags and revenue.
+    columns:
+      - name: outcome_id
+        description: Unique identifier for each outcome
+        tests:
+          - unique
+          - not_null
+      - name: lead_id
+        description: Foreign key to leads table
+        tests:
+          - not_null
+      - name: converted
+        description: Whether the lead converted (0/1) - validated for consistency
+      - name: revenue
+        description: Revenue generated - cleaned for realistic B2B SaaS values
+      - name: days_to_close
+        description: Days from lead creation to close - validated range
+
+  - name: stg_contact_events  
+    description: >
+      Staging model for contact events with data cleaning and validation.
+      Standardizes contact types and handles missing responses.
+    columns:
+      - name: event_id
+        description: Unique identifier for each contact event
+        tests:
+          - unique
+          - not_null
+      - name: lead_id
+        description: Foreign key to leads table
+        tests:
+          - not_null
+      - name: event_date
+        description: Date of contact attempt - cleaned for future dates
+      - name: contact_type
+        description: Standardized contact type (Email, Phone Call, LinkedIn Message, etc.)
+      - name: response_type
+        description: Response received - cleaned for missing values
+
+  - name: stg_funnel_stages
+    description: >
+      Staging model for funnel stages with data validation and business logic.
+      Standardizes stage names and validates progression order.
+    columns:
+      - name: stage_id
+        description: Unique identifier for each stage entry
+        tests:
+          - unique
+          - not_null
+      - name: lead_id
+        description: Foreign key to leads table
+        tests:
+          - not_null
+      - name: stage_name
+        description: Standardized stage name (New, Contacted, Qualified, etc.)
+      - name: stage_date
+        description: Date lead entered this stage - validated for future dates
+      - name: stage_order
+        description: Validated stage order in funnel (1-7)
+      - name: stage_category
+        description: Category of stage (early, middle, late)

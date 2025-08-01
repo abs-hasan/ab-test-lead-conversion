@@ -1,0 +1,68 @@
+version: 2
+
+sources:
+  - name: main
+    description: Raw CRM data from the hybrid data generator
+    tables:
+      - name: leads
+        description: Lead information with company details and test group assignment
+        columns:
+          - name: lead_id
+            description: Unique identifier for each lead
+            tests:
+              - unique
+              - not_null
+          - name: company_name
+            description: Company name (may contain test data to be cleaned)
+          - name: lead_group
+            description: Test group assignment (control/test)
+            
+      - name: outcomes
+        description: Lead conversion outcomes and revenue data
+        columns:
+          - name: outcome_id
+            description: Unique identifier for each outcome
+            tests:
+              - unique
+              - not_null
+          - name: lead_id
+            description: Foreign key to leads table
+            tests:
+              - not_null
+          - name: converted
+            description: Whether the lead converted (0/1)
+          - name: revenue
+            description: Revenue generated from the lead
+            
+      - name: contact_events
+        description: Contact attempt records between sales team and leads
+        columns:
+          - name: event_id
+            description: Unique identifier for each contact event
+            tests:
+              - unique
+              - not_null
+          - name: lead_id
+            description: Foreign key to leads table
+            tests:
+              - not_null
+          - name: contact_type
+            description: Type of contact (Email, Phone Call, etc.)
+          - name: event_date
+            description: Date of contact attempt
+            
+      - name: funnel_stages
+        description: Lead progression through sales funnel stages
+        columns:
+          - name: stage_id
+            description: Identifier for each stage entry (may have duplicates in raw data)
+            tests:
+              - not_null
+          - name: lead_id
+            description: Foreign key to leads table
+            tests:
+              - not_null
+          - name: stage_name
+            description: Name of the funnel stage
+          - name: stage_order
+            description: Order of stage in the funnel (1-7)
